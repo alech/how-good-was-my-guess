@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         How good was my guess
 // @namespace    https://github.com/alech/how-good-was-my-guess
-// @version      0.3.1
+// @version      0.3.2
 // @description  Shows the distance and score of your own guess in GeoGuessr duels, in the console and on the page below the round timer.
 // @author       Alexander Klink
 // @match        https://www.geoguessr.com/*
@@ -173,6 +173,11 @@
         for (const team of state.teams || []) {
             for (const player of team.players || []) players.push(player);
         }
+
+        // Only operate in 1v1 duels. In team duels, surfacing a guess early
+        // could give a team an unfair advantage, so stay out of those entirely.
+        if (players.length !== 2) return;
+
         const myPlayer = players.find((p) => p.playerId === subscribeId);
         if (!myPlayer) return; // not a player in this duel
         if (opponentId && myPlayer.playerId === opponentId) return; // spectating

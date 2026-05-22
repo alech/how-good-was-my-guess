@@ -17,6 +17,8 @@ the round ends. This userscript surfaces them the instant you commit your guess
   e.g. `4445 / 217 km`.
 - Only reports *your* guesses — the opponent's guesses stay hidden, exactly as
   the game intends.
+- Works in **1v1 duels only** — it deliberately does nothing in team duels,
+  where surfacing a guess early could give a team an unfair advantage.
 
 Distance is formatted as:
 

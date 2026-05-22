@@ -1,0 +1,7 @@
+# Python virtualenv
+venv/
+
+# mitmproxy captures — contain GeoGuessr session cookies, never commit
+flows
+flows-full
+ws

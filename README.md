@@ -36,8 +36,9 @@ player (identified in-band from the `SubscribeToLobby` message) and reads the
 ## Installation
 
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
-2. Open `how-good-was-my-guess.user.js`, copy its contents into a new
-   Tampermonkey script (or drag the file onto the Tampermonkey dashboard).
+2. Open the
+   [userscript](https://github.com/alech/how-good-was-my-guess/raw/refs/heads/main/how-good-was-my-guess.user.js)
+   — Tampermonkey detects the `.user.js` file and prompts you to install it.
 3. Reload GeoGuessr and start a duel.
 
 Set `DEBUG = true` near the top of the script for verbose console output.

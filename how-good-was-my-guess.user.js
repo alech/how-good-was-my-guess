@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         How good was my guess
 // @namespace    https://github.com/alech/how-good-was-my-guess
-// @version      0.3.0
+// @version      0.3.1
 // @description  Shows the distance and score of your own guess in GeoGuessr duels, in the console and on the page below the round timer.
 // @author       Alexander Klink
 // @match        https://www.geoguessr.com/*
@@ -18,9 +18,14 @@
     // incoming message code, the full DuelPlayerGuessed payload).
     const DEBUG = false;
 
-    // The id of the player running this script. Captured from the outgoing
-    // SubscribeToLobby / SubscribeToLiveStream messages, which carry it in-band.
-    let myPlayerId = null;
+    // The local player's id, learned from the outgoing SubscribeToLobby /
+    // SubscribeToLiveStream messages (they fire at duel start, before round 1).
+    let subscribeId = null;
+
+    // The opponent's player id, learned from incoming LiveStreamSamples (the
+    // live stream we receive is the opponent's). Used only to guard against
+    // spectating, where the subscribe id is a spectated player, not us.
+    let opponentId = null;
 
     // gameId:roundNumber pairs already reported, so each guess is shown only
     // once even though every DuelPlayerGuessed message carries the full history.
@@ -124,10 +129,7 @@
             console.log(LOG_PREFIX, 'outgoing message code:', code);
         }
         if ((code === 'SubscribeToLobby' || code === 'SubscribeToLiveStream') && msg.playerId) {
-            if (myPlayerId !== msg.playerId) {
-                myPlayerId = msg.playerId;
-                console.log(LOG_PREFIX, 'identified playing player id:', myPlayerId);
-            }
+            subscribeId = msg.playerId;
         }
     }
 
@@ -141,7 +143,14 @@
         }
         if (!msg || !msg.code) return;
 
-        if (DEBUG && msg.code !== 'LiveStreamSamples' && msg.code !== 'HeartBeat') {
+        // The live stream we receive in a 1v1 duel is the opponent's, so its
+        // playerId reliably identifies the opponent.
+        if (msg.code === 'LiveStreamSamples') {
+            if (msg.playerId) opponentId = msg.playerId;
+            return;
+        }
+
+        if (DEBUG && msg.code !== 'HeartBeat') {
             console.log(LOG_PREFIX, 'incoming message code:', msg.code);
         }
 
@@ -157,18 +166,16 @@
         const state = msg.duel && msg.duel.state;
         if (!state) return;
 
-        if (!myPlayerId) {
-            console.log(LOG_PREFIX, 'DuelPlayerGuessed received but playing player id is not known yet');
-            return;
-        }
-
-        let myPlayer = null;
+        // The playing player is the one whose id matches our outgoing Subscribe
+        // messages. If that turns out to be the opponent (whose live stream we
+        // receive), we are spectating rather than playing, so show nothing.
+        const players = [];
         for (const team of state.teams || []) {
-            for (const player of team.players || []) {
-                if (player.playerId === myPlayerId) myPlayer = player;
-            }
+            for (const player of team.players || []) players.push(player);
         }
-        if (!myPlayer) return; // this game does not involve the playing player
+        const myPlayer = players.find((p) => p.playerId === subscribeId);
+        if (!myPlayer) return; // not a player in this duel
+        if (opponentId && myPlayer.playerId === opponentId) return; // spectating
 
         // Report any of the playing player's guesses we have not shown yet.
         // A DuelPlayerGuessed triggered solely by the opponent adds nothing new

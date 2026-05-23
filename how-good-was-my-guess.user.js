@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         How good was my guess
 // @namespace    https://github.com/alech/how-good-was-my-guess
-// @version      0.3.2
+// @version      0.3.3
 // @description  Shows the distance and score of your own guess in GeoGuessr duels, in the console and on the page below the round timer.
 // @author       Alexander Klink
 // @match        https://www.geoguessr.com/*
@@ -182,30 +182,33 @@
         if (!myPlayer) return; // not a player in this duel
         if (opponentId && myPlayer.playerId === opponentId) return; // spectating
 
-        // Report any of the playing player's guesses we have not shown yet.
-        // A DuelPlayerGuessed triggered solely by the opponent adds nothing new
-        // to our own guess list, so it produces no output. Guesses with a null
-        // score are unrevealed placeholders and are skipped.
-        const newGuesses = (myPlayer.guesses || []).filter((g) => {
-            if (g.score === null || g.score === undefined) return false;
-            return !loggedRounds.has((state.gameId || '') + ':' + g.roundNumber);
-        });
-        if (newGuesses.length === 0) return;
+        // Only process the current round's guess. An opponent-triggered
+        // DuelPlayerGuessed (before we have guessed) leaves the current round
+        // empty for us. Past-round entries (e.g. ones lingering after a script
+        // reload mid-game) are ignored. Unrevealed placeholders have a null
+        // score and are skipped.
+        const guess = (myPlayer.guesses || []).find(
+            (g) =>
+                g.roundNumber === state.currentRoundNumber &&
+                g.score !== null &&
+                g.score !== undefined
+        );
+        if (!guess) return;
+
+        const key = (state.gameId || '') + ':' + guess.roundNumber;
+        if (loggedRounds.has(key)) return;
+        loggedRounds.add(key);
 
         if (DEBUG) console.log(LOG_PREFIX, 'your guess - full message:', msg);
 
-        for (const guess of newGuesses) {
-            loggedRounds.add((state.gameId || '') + ':' + guess.roundNumber);
-            console.log(
-                LOG_PREFIX,
-                `Round ${guess.roundNumber}: your guess was ` +
-                    `${(guess.distance / 1000).toFixed(2)} km (${Math.round(guess.distance)} m) away, ` +
-                    `score ${guess.score}`
-            );
-        }
+        console.log(
+            LOG_PREFIX,
+            `Round ${guess.roundNumber}: your guess was ` +
+                `${(guess.distance / 1000).toFixed(2)} km (${Math.round(guess.distance)} m) away, ` +
+                `score ${guess.score}`
+        );
 
-        const latest = newGuesses[newGuesses.length - 1];
-        showDisplay(`${latest.score} / ${formatDistance(latest.distance)}`);
+        showDisplay(`${guess.score} / ${formatDistance(guess.distance)}`);
     }
 
     // --------------------------------------------------------- ws interception

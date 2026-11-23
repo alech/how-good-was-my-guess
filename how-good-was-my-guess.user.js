@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         How good was my guess
 // @namespace    https://github.com/alech/how-good-was-my-guess
-// @version      0.3.3
+// @version      0.3.4
 // @description  Shows the distance and score of your own guess in GeoGuessr duels, in the console and on the page below the round timer.
 // @author       Alexander Klink
 // @match        https://www.geoguessr.com/*
@@ -63,10 +63,13 @@
         return displayEl;
     }
 
-    // The round timer is a ClockTimer component. Its CSS-module class keeps the
-    // "clock-timer_timerContainer" prefix across builds; only the hash changes.
+    // The round timer is a ClockTimer component. The new frontend's CSS-module
+    // classes look like "_timerContainer_<hash>"; the old one used
+    // "clock-timer_timerContainer__<hash>". Match either.
     function findTimer() {
-        const candidates = document.querySelectorAll('[class*="clock-timer_timerContainer"]');
+        const candidates = document.querySelectorAll(
+            '[class*="_timerContainer_"], [class*="clock-timer_timerContainer"]'
+        );
         for (const el of candidates) {
             const r = el.getBoundingClientRect();
             if (r.width > 0 && r.height > 0) return el;

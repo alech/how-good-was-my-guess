@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         How good was my guess
 // @namespace    https://github.com/alech/how-good-was-my-guess
-// @version      0.3.4
+// @version      0.3.5
 // @description  Shows the distance and score of your own guess in GeoGuessr duels, in the console and on the page below the round timer.
 // @author       Alexander Klink
 // @match        https://www.geoguessr.com/*
@@ -63,32 +63,53 @@
         return displayEl;
     }
 
-    // The round timer is a ClockTimer component. The new frontend's CSS-module
-    // classes look like "_timerContainer_<hash>"; the old one used
-    // "clock-timer_timerContainer__<hash>". Match either.
+    function isVisible(el) {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+    }
+
+    // The countdown that starts after the first guess, e.g. "0:15" or "00:09".
+    const COUNTDOWN_RE = /^\s*\d{1,2}:\d{2}\s*$/;
+
+    // Fallback when class names give nothing away: the visible element whose
+    // whole text is a countdown.
+    function findTimerByText() {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!COUNTDOWN_RE.test(node.nodeValue)) continue;
+            const el = node.parentElement;
+            if (el && el.id !== 'hgwmg-display' && isVisible(el)) return el;
+        }
+        return null;
+    }
+
+    let timerEl = null;
+
+    // The round timer is a ClockTimer component. Old builds used classes like
+    // "clock-timer_timerContainer__<hash>", newer ones "_timerContainer_<hash>";
+    // the current one matches neither, so fall back to the countdown text.
     function findTimer() {
+        if (timerEl && timerEl.isConnected && isVisible(timerEl)) return timerEl;
         const candidates = document.querySelectorAll(
             '[class*="_timerContainer_"], [class*="clock-timer_timerContainer"]'
         );
-        for (const el of candidates) {
-            const r = el.getBoundingClientRect();
-            if (r.width > 0 && r.height > 0) return el;
-        }
-        return null;
+        timerEl = [...candidates].find(isVisible) || (document.body && findTimerByText());
+        return timerEl;
     }
 
     function positionUnderTimer() {
         const el = getDisplayEl();
         const timer = findTimer();
-        if (!timer) {
-            el.style.visibility = 'hidden';
-            return;
+        if (timer) {
+            const r = timer.getBoundingClientRect();
+            el.style.left = r.left + r.width / 2 + 'px';
+            el.style.top = r.bottom + 8 + 'px';
+        } else {
+            // No timer found: still show the result, at the top centre.
+            el.style.left = '50%';
+            el.style.top = 'calc(env(safe-area-inset-top, 0px) + 80px)';
         }
-        const r = timer.getBoundingClientRect();
-        el.style.left = r.left + r.width / 2 + 'px';
-        el.style.top = r.bottom + 8 + 'px';
         el.style.transform = 'translateX(-50%)';
-        el.style.visibility = 'visible';
     }
 
     function showDisplay(text) {
